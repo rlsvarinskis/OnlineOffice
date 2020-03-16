@@ -1,0 +1,554 @@
+<html>
+	<head>
+		<title>Grapher.exe</title>
+		<script type='text/javascript' src='./Graph.js'></script>
+		<script type='text/javascript'>
+			window.onresize = function(e)
+			{
+				//currentGraph.redraw();
+			}
+
+			function showSettings()
+			{
+				var el = document.getElementById("topbutton");
+				document.getElementById("settings").setAttribute("isOpened", el.getAttribute("isOpened") == "true" ? "" : "true");
+				el.setAttribute("isOpened", el.getAttribute("isOpened") == "true" ? "" : "true");
+			}
+
+			var graphTypes = {
+				linegraph: function(){return new LineGraph()},
+				areagraph: function(){return new AreaGraph()}
+			}
+
+			function selectChild(child)
+			{
+				var el = child.parentNode;
+				for (var x = 0; x < el.children.length; x++)
+					el.children[x].setAttribute("selected", "no");
+				child.setAttribute("selected", "yes");
+			}
+
+			function addOptions()
+			{
+				var lastelement = document.getElementById("lastsettingsvalue");
+				while (lastelement.nextElementSibling != null)
+					lastelement.parentNode.removeChild(lastelement.nextElementSibling);
+				lastelement = lastelement.parentNode;
+				for (var x = 0; x < currentGraph.optionsmetadata.length; x++)
+				{
+					var option = currentGraph.optionsmetadata[x];
+					var el = document.createElement("div");
+					el.className = "srow";
+					el.innerHTML = "<div class='sc'>" + option.title + "</div>";x
+					var el2 = document.createElement("div");
+					el2.className = 'sc';
+					switch (option.valuetype)
+					{
+						default:
+						case "string":;
+							var el3 = document.createElement("input");
+							el3.value = option.value;
+							el3.setAttribute("type", "text");
+							el3.onkeypress = option.onkeypress;
+							el3.onkeyup = option.onkeypress;
+							el2.appendChild(el3);
+							break;
+						case "choice":
+							var str = "<div class='buttoncont'>";
+							for (var y = 0; y < option.value.length; y++)
+								str += "<div class='button' type='" + option.value[y].type + "' selected='" + ((y == 0) ? "yes" : "no") + "' onclick='currentGraph.setOption(\"" + option.name + "\", \"" + option.value[y].value + "\");selectChild(this);'><div class='innerbutton'>" + option.value[y].name + "</div></div>";
+							str += "</div>";
+							el2.innerHTML = str;
+							break;
+						case "boolean":
+							el2.innerHTML = "<div class='buttoncont'>" +
+								"<div class='button' type='red' selected='yes' onclick='currentGraph.setOption(\"" + option.name + "\", true);selectChild(this);'><div class='innerbutton'>Yes</div></div>" +
+								"<div class='button' type='blue' onclick='currentGraph.setOption(\"" + option.name + "\", false);selectChild(this);'><div class='innerbutton'>No</div></div></div>";
+							break;
+						case "number":
+							//
+							break;
+					}
+					el.appendChild(el2);
+					lastelement.appendChild(el);
+				}
+				//------
+			}
+
+			function changeGraphTo(name)
+			{
+				document.getElementById(currentGraphType).setAttribute("selected", "no");
+				document.getElementById(name).setAttribute("selected", "yes");
+				currentGraphType = name;
+				currentGraph = graphTypes[name]();
+				var v = document.getElementById("graphsettings");
+				var height = v.scrollHeight - 22;
+				v.style.height = height + "px";
+				setTimeout(function(){v.setAttribute("transition", "yes");v.style.height = "0px";}, 1);
+				setTimeout(function(){addOptions();v.style.height = height + "px";}, 500);
+				setTimeout(function(){v.style.height = "";v.setAttribute("transition", "no")}, 1000);
+				animationStarted = new Date().getTime();
+				redraw();
+			}
+
+			function updateTitle(input)
+			{
+				document.getElementById("maintitle").innerHTML = input.value;
+			}
+
+			function updateXAxis(input)
+			{
+				document.getElementById("xaxistitle").innerHTML = input.value;
+			}
+
+			function updateYAxis(input)
+			{
+				document.getElementById("yaxistitle").innerHTML = input.value;
+			}
+
+			this.updateXAxisUnits(val)
+			{
+				this.x.units = val;
+				redraw();
+			}
+
+			function updateYAxisUnits(input)
+			{
+				yaxisunits = input.value;
+				redraw();
+			}
+		</script>
+		<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700|Gafata|Open+Sans+Condensed:300&subset=latin-ext' rel='stylesheet' type='text/css'>
+		<style>
+			body
+			{
+				background-image: -webkit-linear-gradient(black, #224);
+				background-image: -moz-linear-gradient(black, #224);
+				background-image: -ms-linear-gradient(black, #224);
+				background-image: -o-linear-gradient(black, #224);
+				background-image: linear-gradient(black, #224);
+				width: 100%;
+				height: 100%;
+				color: #ddd;
+				font-family: Gafata;
+				margin: 0;
+			}
+			#actionbar
+			{
+				position: absolute;
+				top: 8px;
+				right: 8px;
+			}
+			#topbutton
+			{
+				border-radius: 5px;
+				background-color: rgba(32, 32, 32, 0.5);
+				padding: 10px 40px;
+				text-align: center;
+				display: inline-block;
+				cursor: pointer;
+			}
+			#topbutton:hover
+			{
+				background-color: rgba(64, 64, 64, 0.5);
+			}
+			#topbutton[isOpened="true"]
+			{
+				-webkit-transition: all 0.25s;
+				-moz-transition: all 0.25s;
+				-ms-transition: all 0.25s;
+				-o-transition: all 0.25s;
+				transition: all 0.25s;
+				background-color: rgba(32, 32, 128, 1);
+			}
+			#settings
+			{
+				margin-top: 5px;
+				position: absolute;
+				border-radius: 5px;
+				right: 0px;
+				background-color: rgba(32, 32, 128, 1);
+				overflow: hidden;
+				width: 400px;
+				height: 500px;
+				transform: scale(0);
+				transform-origin: 100% 0%;
+				-webkit-transition: all 0.25s;
+				-moz-transition: all 0.25s;
+				-ms-transition: all 0.25s;
+				-o-transition: all 0.25s;
+				transition: all 0.25s;
+				border-top: solid 1px rgba(255, 255, 255, 0.3);
+				border-bottom: solid 1px rgba(0, 0, 0, 0.3);
+			}
+			#settings[isOpened="true"]
+			{
+				transform: scale(1);
+			}
+			#settingsinner
+			{
+				width: 200%;
+			}
+			#p1
+			{
+				width: 50%;
+				height: 100%;
+				overflow-y: auto;
+				overflow-x: hidden;
+			}
+			.setting
+			{
+				padding: 10px;
+				border-top: solid 1px rgba(255, 255, 255, 0.3);
+				border-bottom: solid 1px rgba(0, 0, 0, 0.3);
+			}
+			#graphsettings
+			{
+				overflow: hidden;
+			}
+			#graphsettings[transition="yes"]
+			{
+				transition: height 0.25s;
+			}
+			.setting:first-child
+			{
+				border-top: none;
+			}
+			.setting:last-child
+			{
+				border-bottom: none;
+			}
+			.buttoncont
+			{
+				border: solid 1px #272727;
+				border-radius: 20px;
+				display: table;
+				width: 100%;
+			}
+			.button
+			{
+				display: table-cell;
+				text-align: center;
+				cursor: pointer;
+				background: -webkit-linear-gradient(#FF3542, #C12832);
+				background: -moz-linear-gradient(#FF3542, #C12832);
+				background: -ms-linear-gradient(#FF3542, #C12832);
+				background: -o-linear-gradient(#FF3542, #C12832);
+				background: linear-gradient(#FF3542, #C12832);
+				transition: all 0.5s;
+			}
+			.button[type='red']
+			{
+				background: -webkit-linear-gradient(#FF3542, #C12832);
+				background: -moz-linear-gradient(#FF3542, #C12832);
+				background: -ms-linear-gradient(#FF3542, #C12832);
+				background: -o-linear-gradient(#FF3542, #C12832);
+				background: linear-gradient(#FF3542, #C12832);
+			}
+			.button[type='red'][selected='yes']
+			{
+				box-shadow: 0 0 10px #FF3542;
+				background: -webkit-linear-gradient(to top, #FF3542, #C12832);
+				background: -moz-linear-gradient(to top, #FF3542, #C12832);
+				background: -ms-linear-gradient(to top, #FF3542, #C12832);
+				background: -o-linear-gradient(to top, #FF3542, #C12832);
+				background: linear-gradient(to top, #FF3542, #C12832);
+			}
+			.button[type='orange']
+			{
+				background: -webkit-linear-gradient(#FFA435, #BF7B28);
+				background: -moz-linear-gradient(#FFA435, #BF7B28);
+				background: -ms-linear-gradient(#FFA435, #BF7B28);
+				background: -o-linear-gradient(#FFA435, #BF7B28);
+				background: linear-gradient(#FFA435, #BF7B28);
+			}
+			.button[type='orange'][selected='yes']
+			{
+				box-shadow: 0 0 10px #FFA435;
+				background: -webkit-linear-gradient(to top, #FFA435, #BF7B28);
+				background: -moz-linear-gradient(to top, #FFA435, #BF7B28);
+				background: -ms-linear-gradient(to top, #FFA435, #BF7B28);
+				background: -o-linear-gradient(to top, #FFA435, #BF7B28);
+				background: linear-gradient(to top, #FFA435, #BF7B28);
+			}
+			.button[type='yellow']
+			{
+				background: -webkit-linear-gradient(#FFFF35, #B7B726);
+				background: -moz-linear-gradient(#FFFF35, #B7B726);
+				background: -ms-linear-gradient(#FFFF35, #B7B726);
+				background: -o-linear-gradient(#FFFF35, #B7B726);
+				background: linear-gradient(#FFFF35, #B7B726);
+			}
+			.button[type='yellow'][selected='yes']
+			{
+				box-shadow: 0 0 10px #FFFF35;
+				background: -webkit-linear-gradient(to top, #FFFF35, #B7B726);
+				background: -moz-linear-gradient(to top, #FFFF35, #B7B726);
+				background: -ms-linear-gradient(to top, #FFFF35, #B7B726);
+				background: -o-linear-gradient(to top, #FFFF35, #B7B726);
+				background: linear-gradient(to top, #FFFF35, #B7B726);
+			}
+			.button[type='green']
+			{
+				background: -webkit-linear-gradient(#60CC2A, #41891C);
+				background: -moz-linear-gradient(#60CC2A, #41891C);
+				background: -ms-linear-gradient(#60CC2A, #41891C);
+				background: -o-linear-gradient(#60CC2A, #41891C);
+				background: linear-gradient(#60CC2A, #41891C);
+			}
+			.button[type='green'][selected='yes']
+			{
+				box-shadow: 0 0 10px #60CC2A;
+				background: -webkit-linear-gradient(to top, #60CC2A, #41891C);
+				background: -moz-linear-gradient(to top, #60CC2A, #41891C);
+				background: -ms-linear-gradient(to top, #60CC2A, #41891C);
+				background: -o-linear-gradient(to top, #60CC2A, #41891C);
+				background: linear-gradient(to top, #60CC2A, #41891C);
+			}
+			.button[type='blue']
+			{
+				background: -webkit-linear-gradient(#356BFF, #274FBC);
+				background: -moz-linear-gradient(#356BFF, #274FBC);
+				background: -ms-linear-gradient(#356BFF, #274FBC);
+				background: -o-linear-gradient(#356BFF, #274FBC);
+				background: linear-gradient(#356BFF, #274FBC);
+			}
+			.button[type='blue'][selected='yes']
+			{
+				box-shadow: 0 0 10px #356BFF;
+				background: -webkit-linear-gradient(to top, #356BFF, #274FBC);
+				background: -moz-linear-gradient(to top, #356BFF, #274FBC);
+				background: -ms-linear-gradient(to top, #356BFF, #274FBC);
+				background: -o-linear-gradient(to top, #356BFF, #274FBC);
+				background: linear-gradient(to top, #356BFF, #274FBC);
+			}
+			.button[type='purple']
+			{
+				background: -webkit-linear-gradient(#9A35FF, #7027BA);
+				background: -moz-linear-gradient(#9A35FF, #7027BA);
+				background: -ms-linear-gradient(#9A35FF, #7027BA);
+				background: -o-linear-gradient(#9A35FF, #7027BA);
+				background: linear-gradient(#9A35FF, #7027BA);
+			}
+			.button[type='purple'][selected='yes']
+			{
+				box-shadow: 0 0 10px #9A35FF;
+				background: -webkit-linear-gradient(to top, #9A35FF, #7027BA);
+				background: -moz-linear-gradient(to top, #9A35FF, #7027BA);
+				background: -ms-linear-gradient(to top, #9A35FF, #7027BA);
+				background: -o-linear-gradient(to top, #9A35FF, #7027BA);
+				background: linear-gradient(to top, #9A35FF, #7027BA);
+			}
+			.innerbutton
+			{
+				padding: 10px;
+				border-top: solid 1px rgba(255, 255, 255, 0.4);
+				border-bottom: solid 1px rgba(0, 0, 0, 0.3);
+				border-right: solid 1px rgba(255, 255, 255, 0.4);
+				border-left: solid 1px rgba(0, 0, 0, 0.3);
+			}
+			.button:hover .innerbutton
+			{
+				background-color: rgba(255, 255, 255, 0.1);
+			}
+			.button:first-child
+			{
+				border-left: none;
+				border-top-left-radius: 20px;
+				border-bottom-left-radius: 20px;
+			}
+			.button:first-child .innerbutton
+			{
+				border-left: none;
+				border-top-left-radius: 20px;
+				border-bottom-left-radius: 20px;
+			}
+			.button:last-child
+			{
+				border-right: none;
+				border-top-right-radius: 20px;
+				border-bottom-right-radius: 20px;
+			}
+			.button:last-child .innerbutton
+			{
+				border-right: none;
+				border-top-right-radius: 20px;
+				border-bottom-right-radius: 20px;
+			}
+			.stable
+			{
+				display: table;
+				width: 100%;
+				margin: 5px;
+			}
+			.srow
+			{
+				display: table-row;
+				width: 100%;
+			}
+			.sc
+			{
+				display: table-cell;
+			}
+			input[type='text']
+			{
+				transition: width 0.5s, background-color 0.5s, border 0.5s;
+				background-color: rgba(0, 0, 0, 0.2);
+				border: solid 1px transparent;
+				color: white;
+				padding: 2px 5px;
+				margin: 3px 0;
+				border-radius: 4px;
+				width: 100%;
+				cursor: pointer;
+			}
+			input[type='text']:focus
+			{
+				background-color: rgba(0, 0, 0, 0.3);
+				border: solid 1px rgba(0, 0, 0, 0.4);
+				outline: none;
+				width: 100%;
+				cursor: text;
+			}
+			#graph
+			{
+				/*position: absolute;
+				left: 200px;
+				right: 200px;
+				top: 30px;
+				bottom: 30px;
+				margin: auto;*/
+				width: 100%;
+				height: 100%;
+			}
+		</style>
+	</head>
+	
+	<body>
+		<canvas id='graph' width="100%" height="100%">
+			
+		</canvas>
+		
+		<div id='actionbar'>
+			<div id='topbutton' onclick='showSettings()'>?</div>
+			<div id='settings'>
+				<div id='settingsinner'>
+					<div id='p1'>
+						<div class='setting'>
+							Graph type:<br />
+							<br />
+							<div class='buttoncont'>
+								<div class='button' type='red' selected='yes' id='linegraph' onclick='changeGraphTo("linegraph")'>
+									<div class='innerbutton'>
+										Line
+									</div>
+								</div>
+								<div class='button' type='yellow' id='areagraph' onclick='changeGraphTo("areagraph")'>
+									<div class='innerbutton'>
+										Area
+									</div>
+								</div>
+								<div class='button' type='green' id='bargraph' onclick='changeGraphTo("bargraph")'>
+									<div class='innerbutton'>
+										Bar
+									</div>
+								</div>
+								<div class='button' type='blue' id='piegraph' onclick='changeGraphTo("piegraph")'>
+									<div class='innerbutton'>
+										Pie
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class='setting' id='graphsettings'>
+							Graph settings:
+							<div class='stable'>
+								<div class='srow'>
+									<div class='sc'>
+										Title:
+									</div>
+									<div class='sc'>
+										<input type='text' value='Graph' onkeypress='updateTitle(this)' onkeyup='updateTitle(this)'/>
+									</div>
+								</div>
+								<div class='srow'>
+									<div class='sc'>
+										X-Axis:
+									</div>
+									<div class='sc'>
+										<input type='text' value='x axis' onkeypress='updateXAxis(this)' onkeyup='updateXAxis(this)'/>
+									</div>
+								</div>
+								<div class='srow'>
+									<div class='sc'>
+										Y-Axis:
+									</div>
+									<div class='sc'>
+										<input type='text' value='y axis' onkeypress='updateYAxis(this)' onkeyup='updateYAxis(this)'/>
+									</div>
+								</div>
+								<div class='srow'>
+									<div class='sc'>
+										X-Axis units:
+									</div>
+									<div class='sc'>
+										<input type='text' value='' onkeypress='updateXAxisUnits(this)' onkeyup='updateXAxisUnits(this)'/>
+									</div>
+								</div>
+								<div class='srow' id='lastsettingsvalue'>
+									<div class='sc'>
+										Y-Axis units:
+									</div>
+									<div class='sc'>
+										<input type='text' value='' onkeypress='updateYAxisUnits(this)' onkeyup='updateYAxisUnits(this)'/>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class='setting'>
+							Graph data:<br />
+							<div class='stable'>
+								<div class='srow'>
+									<div class='sc'>
+										Import data:
+									</div>
+									<div class='sc'>
+										<input type='file' id='uploadfile'></input>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id='p2'>
+					
+					</div>
+				</div>
+			</div>
+		</div>
+		<script type='text/javascript'>
+			function getRandomData(size)
+			{
+				var a = [];
+				var last = 0;
+				var lastlast = 0;
+				for (var y = 0; y < size; y++)
+				{
+					a[y] = ((Math.random() * 1000 + 500) + last + lastlast) / 3 + last / 3;
+					lastlast = last;
+					last = a[y];
+					if (Math.random() > 0.9)
+						a[y] = getRandomData(8);
+				}
+				return a;
+			}
+			
+			var graph = new PieGraph();
+			//graph.setTitles(["Q1", "Q2", "Q3", "Q4", "Q1", "Q2", "Q3", "Q4", "Q1", "Q2", "Q3", "Q4"]);
+			for (var i = 0; i < 4; i++)
+				graph.addData("Random data " + i, getRandomData(4), "rgb(" + Math.floor(Math.random() * 256) + ", " + Math.floor(Math.random() * 256) + ", " + Math.floor(Math.random() * 256) + ")");
+			//graph.addData("Test a", [[1, 1]], "#f44");
+			//graph.addData("Test b", [2], "#44f");
+			redraw(graph, document.getElementById("graph"), 750);
+		</script>
+	</body>
+</html>
